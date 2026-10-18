@@ -25,6 +25,7 @@ pub(super) struct VmInstance {
     pub(super) _resource_domain: OwnedHandle<ResourceDomainObject>,
     pub(super) _task_group: OwnedHandle<TaskGroupObject>,
     pub(super) runtime: OwnedHandle<ProcessObject>,
+    pub(super) retirement: hyper_os::task::ProcessRetirement,
     pub(super) runtime_control: Option<OwnedHandle<ByteChannelObject>>,
     pub(super) console_connection: CapabilityChannel,
     pub(super) policy: InstancePolicy,
@@ -276,18 +277,44 @@ impl FleetManager {
             .as_process_supervisor()
             .wait_terminated(hyper_os::DEADLINE_INFINITE)?;
         instance.drain_runtime_statuses()?;
+        let termination = instance.runtime.as_process_supervisor().info()?.terminal;
         let succeeded = matches!(
-            instance.runtime.as_process_supervisor().info()?.terminal,
+            termination,
             Some(ProcessTermination::ProcessExited { status: 0 })
         );
         let outcome =
             std::mem::take(&mut instance.policy).finish(succeeded, &mut instance.io_admission);
         self.machines[vm].policy.finished(&outcome);
         if let vm_contract::InstanceEvent::Failed(reason) = outcome.event {
+            let retained = hyper_os::time::deadline_after(std::time::Duration::from_secs(2))
+                .and_then(|deadline| instance.retirement.wait_ready(deadline.as_raw()));
+            let postmortem = match retained {
+                Ok(info) => format!(
+                    "fault={} pc=0x{:x} address=0x{:x} retained={} bytes",
+                    info.fault_class, info.fault_pc, info.fault_address, info.retained_bytes,
+                ),
+                Err(error) => format!("postmortem unavailable: {error:?}"),
+            };
+            let detail = format!(
+                "VM '{}' runtime process=0x{:x} terminated: {termination:?}; failure={reason:?}; {postmortem}",
+                self.machines[vm].definition.name,
+                instance.runtime.basic_info()?.koid.get(),
+            );
+            if let Some(connector) = &self.component_connector {
+                let _ =
+                    hyper_component::connection::report_failure(connector.as_handle_ref(), &detail);
+            }
             eprintln!(
                 "HypeR vm-manager: VM '{}' failed: {reason:?}",
                 self.machines[vm].definition.name
             );
+        }
+        // Successful VM shutdown has no scene to collect; preauthorize its
+        // cleanup without waiting for the reaper's diagnostic capture pass.
+        if let Err(error) = instance.retirement.release() {
+            // Dropping the linear controller also releases retention. A
+            // diagnostic failure must not terminate the fleet supervisor.
+            eprintln!("HypeR vm-manager: postmortem release failed: {error:?}");
         }
         drop(instance);
         Ok(())

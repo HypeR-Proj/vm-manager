@@ -38,6 +38,7 @@ pub(super) struct FleetManager {
     io_service: Option<inventory::ObservedVm>,
     configuration: FleetConfiguration,
     connections: listener::Listener,
+    component_connector: Option<OwnedHandle<CapabilityChannelObject>>,
     root: Directory,
     machines: Vec<Machine>,
     clients: [Option<Client>; MAX_CLIENTS],
@@ -64,6 +65,13 @@ impl FleetManager {
             connections: listener::Listener::start(CapabilityChannel::from_handle(
                 startup.take(vm_contract::MANAGER_CONNECTION)?,
             ))?,
+            // Retain the component route for failures after startup. Keep the
+            // original grant available for the entry point's readiness report.
+            component_connector: startup
+                .borrow(hyper_component::CONNECTOR)
+                .ok()
+                .map(|connector| connector.duplicate(hyper_service_ipc::CLIENT_RIGHTS))
+                .transpose()?,
             root: Directory::from_handle(startup.take(startup::ROOT_DIRECTORY)?),
             machines: Vec::new(),
             clients: std::array::from_fn(|_| None),

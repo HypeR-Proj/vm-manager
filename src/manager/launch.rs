@@ -155,12 +155,14 @@ impl FleetManager {
         } else {
             None
         };
+        let retirement = builder.retain_on_exit(8 * 1024 * 1024, 10_000_000_000)?;
         builder.seal()?;
         let runtime = builder.start().map_err(|failure| failure.error())?;
         self.machines[vm].instance = Some(VmInstance {
             _resource_domain: domain,
             _task_group: group,
             runtime,
+            retirement,
             runtime_control: Some(manager_runtime),
             console_connection,
             policy: InstancePolicy::default(),
