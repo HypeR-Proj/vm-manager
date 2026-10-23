@@ -60,6 +60,12 @@ impl FleetManager {
             self.authority.as_handle_ref(),
             domain.as_handle_ref(),
         )?;
+        let scheduling_rights =
+            Rights::from_bits(lease.info()?.rights.bits() & hyper_os::scheduling::RIGHTS.bits())
+                .ok_or(hyper_os::Error::InvalidResponse)?;
+        let runtime_lease_rights = vm_contract::RUNTIME_CREATION_LEASE_CONTRACT
+            .required_rights()
+            .union(scheduling_rights);
         let (console_connection, runtime_connection) = CapabilityChannel::create()?;
         let (manager_runtime, runtime_control) = channel::create_pair()?;
         let builder = ProcessBuilder::create(
@@ -112,7 +118,7 @@ impl FleetManager {
             .add_handle_move(
                 lease,
                 vm_contract::RUNTIME_CREATION_LEASE_CONTRACT.purpose(),
-                RightsOffer::Exact(vm_contract::RUNTIME_CREATION_LEASE_CONTRACT.required_rights()),
+                RightsOffer::Exact(runtime_lease_rights),
             )
             .map_err(|failure| failure.error())?;
         builder
