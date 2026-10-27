@@ -10,9 +10,6 @@ use hyper_os::handle::{ByteChannelObject, CapabilityChannelObject, OwnedHandle, 
 use hyper_os::wait::{ObjectSignals, WaitItem, wait_many};
 use hyper_service::vm as vm_contract;
 use hyper_vm_policy::fleet::Response;
-use std::time::Duration;
-
-const CAPABILITY_REPLY_DEADLINE: Duration = Duration::from_millis(100);
 
 impl FleetManager {
     pub(super) fn attach_console(&mut self, vm: usize, client: usize) -> hyper_os::Result<()> {
@@ -29,15 +26,24 @@ impl FleetManager {
             );
         }
         let (runtime_end, client_end) = channel::create_pair()?;
+        let deadline =
+            hyper_os::time::deadline_after(vm_contract::CONSOLE_HANDOFF_TIMEOUT)?.as_raw();
         instance
             .runtime_control
             .as_ref()
             .ok_or(hyper_os::Error::MissingHandle)?
             .as_byte_channel()
-            .try_send(&vm_contract::InstanceCommand::AttachConsole.encode())?;
+            .try_send(
+                &vm_contract::ConsoleAttachRequest {
+                    deadline_ns: deadline,
+                }
+                .encode(),
+            )?;
         let mut runtime_end = Some(runtime_end);
-        if send_console_endpoint(&instance.console_connection, &mut runtime_end).is_err() {
-            return self.reply_error(client, "console connection failed");
+        if let Err(error) =
+            send_console_endpoint(&instance.console_connection, &mut runtime_end, deadline)
+        {
+            return self.reply_error(client, &format!("console connection failed: {error:?}"));
         }
         let mut console_channel = Some(client_end);
         if let Some(instance) = self.machines[vm].instance.as_mut() {
@@ -47,12 +53,17 @@ impl FleetManager {
         if self.clients[client].is_none() {
             return Ok(());
         }
-        let deadline = hyper_os::time::deadline_after(CAPABILITY_REPLY_DEADLINE)?.as_raw();
+        let deadline =
+            hyper_os::time::deadline_after(vm_contract::CONSOLE_HANDOFF_TIMEOUT)?.as_raw();
         let endpoint = self.clients[client]
             .as_ref()
             .map(|client| &client.capabilities)
             .ok_or(hyper_os::Error::InvalidResponse)?;
         loop {
+            if hyper_os::time::monotonic_now()?.as_nanoseconds() >= deadline {
+                self.disconnect_client(client);
+                return Ok(());
+            }
             let waits = [WaitItem::new(
                 endpoint.as_handle_ref(),
                 ObjectSignals::<CapabilityChannelObject>::PEER_RECEIVING
@@ -90,9 +101,12 @@ impl FleetManager {
 fn send_console_endpoint(
     endpoint: &CapabilityChannel,
     handle: &mut Option<OwnedHandle<ByteChannelObject>>,
+    deadline: u64,
 ) -> hyper_os::Result<()> {
-    let deadline = hyper_os::time::deadline_after(CAPABILITY_REPLY_DEADLINE)?.as_raw();
     loop {
+        if hyper_os::time::monotonic_now()?.as_nanoseconds() >= deadline {
+            return Err(hyper_os::Error::Status(hyper_os::Status::TIMED_OUT));
+        }
         let waits = [WaitItem::new(
             endpoint.as_handle_ref(),
             ObjectSignals::<CapabilityChannelObject>::PEER_RECEIVING
@@ -102,7 +116,14 @@ fn send_console_endpoint(
         if !ObjectSignals::<CapabilityChannelObject>::PEER_RECEIVING
             .is_present_in(observed.observed)
         {
-            return Err(hyper_os::Error::Status(hyper_os::Status::PEER_CLOSED));
+            let status = if ObjectSignals::<CapabilityChannelObject>::PEER_CLOSED
+                .is_present_in(observed.observed)
+            {
+                hyper_os::Status::PEER_CLOSED
+            } else {
+                hyper_os::Status::TIMED_OUT
+            };
+            return Err(hyper_os::Error::Status(status));
         }
         let disposition = CapabilityDisposition::move_handle(
             handle,
