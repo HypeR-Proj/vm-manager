@@ -57,7 +57,7 @@ impl FleetManager {
             hyper_os::time::deadline_after(vm_contract::CONSOLE_HANDOFF_TIMEOUT)?.as_raw();
         let endpoint = self.clients[client]
             .as_ref()
-            .map(|client| &client.capabilities)
+            .and_then(|client| client.capabilities.as_ref())
             .ok_or(hyper_os::Error::InvalidResponse)?;
         loop {
             if hyper_os::time::monotonic_now()?.as_nanoseconds() >= deadline {

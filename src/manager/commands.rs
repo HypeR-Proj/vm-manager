@@ -66,6 +66,28 @@ impl FleetManager {
         let message = bytes
             .get(..length)
             .ok_or(hyper_os::Error::InvalidResponse)?;
+        if self.clients[index]
+            .as_ref()
+            .is_some_and(|client| client.capabilities.is_none())
+        {
+            // This admitted endpoint cannot reach fleet control, even with a
+            // well-formed lifecycle request. Close malformed observer traffic.
+            if message != vm_contract::trace::REQUEST {
+                self.disconnect_client(index);
+                return Ok(());
+            }
+            let deadline = hyper_os::time::deadline_after(Duration::from_millis(250))?.as_raw();
+            let records = self.trace_threads(deadline);
+            let bytes =
+                vm_contract::trace::encode(&records).ok_or(hyper_os::Error::InvalidResponse)?;
+            if self.clients[index]
+                .as_ref()
+                .is_none_or(|client| client.control.as_byte_channel().try_send(&bytes).is_err())
+            {
+                self.disconnect_client(index);
+            }
+            return Ok(());
+        }
         match fleet::request(message) {
             Ok(command) => match self.execute_command(index, command) {
                 Ok(()) => Ok(()),

@@ -295,6 +295,7 @@ fn affinity_requires_a_running_managed_instance() {
 fn late_affinity_reply_does_not_corrupt_lifecycle() {
     let mut policy = running();
     let reply = vm::VcpuControlReply {
+        scheduler_thread_id: Some(123),
         sequence: 9,
         vcpu: 0,
         host_cpu: Some(0),

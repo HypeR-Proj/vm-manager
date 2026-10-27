@@ -91,7 +91,7 @@ impl VmInstance {
             if hyper_os::time::monotonic_now()?.as_nanoseconds() >= deadline {
                 return Err(hyper_os::Error::Status(hyper_os::Status::TIMED_OUT));
             }
-            let mut bytes = [0u8; vm_contract::OBSERVATION_BYTES];
+            let mut bytes = [0u8; vm_contract::VCPU_REPLY_BYTES];
             match control.try_receive(&mut bytes) {
                 Ok(length) => {
                     if let Some(reply) = decode(&bytes[..length]) {
@@ -128,7 +128,7 @@ impl VmInstance {
     }
 
     fn receive_runtime_status(&mut self) -> hyper_os::Result<RuntimeControlState> {
-        let mut message = [0u8; vm_contract::OBSERVATION_BYTES];
+        let mut message = [0u8; vm_contract::VCPU_REPLY_BYTES];
         let received = self
             .runtime_control
             .as_ref()
@@ -144,7 +144,7 @@ impl VmInstance {
             return Ok(());
         };
         loop {
-            let mut message = [0u8; vm_contract::OBSERVATION_BYTES];
+            let mut message = [0u8; vm_contract::VCPU_REPLY_BYTES];
             match control.as_byte_channel().try_receive(&mut message) {
                 Ok(length) => {
                     if self.policy.observe_message(&message[..length]).is_err() {

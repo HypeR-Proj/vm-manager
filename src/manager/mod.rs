@@ -235,7 +235,7 @@ struct Machine {
 
 struct Client {
     control: OwnedHandle<ByteChannelObject>,
-    capabilities: CapabilityChannel,
+    capabilities: Option<CapabilityChannel>,
 }
 
 #[derive(Clone, Copy)]

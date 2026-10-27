@@ -101,6 +101,49 @@ impl FleetManager {
         }
     }
 
+    pub(super) fn trace_threads(&mut self, deadline: u64) -> Vec<hyper_service::vm::trace::Thread> {
+        let mut threads = Vec::new();
+        for machine in &mut self.machines {
+            let Some(instance) = machine.instance.as_mut() else {
+                continue;
+            };
+            for vcpu in 0..machine.definition.configuration.vcpus {
+                if threads.len() == hyper_service::vm::trace::MAX_THREADS {
+                    return threads;
+                }
+                let Ok(reply) = instance.control_vcpu(vcpu, None, deadline) else {
+                    break;
+                };
+                if reply.status == hyper_os::Status::OK
+                    && let Some(thread) = reply.scheduler_thread_id
+                {
+                    threads.push(hyper_service::vm::trace::Thread {
+                        thread,
+                        vcpu,
+                        name: machine.definition.name.clone(),
+                    });
+                }
+            }
+        }
+        if threads.len() < hyper_service::vm::trace::MAX_THREADS
+            && let Some(vm) = self.observed_vm()
+        {
+            let _ = read_observation(&vm.broker, deadline, |info| {
+                if info.name == vm.name
+                    && info.image == vm.image
+                    && let Some(thread) = info.boot_thread_id
+                {
+                    threads.push(hyper_service::vm::trace::Thread {
+                        thread,
+                        vcpu: 0,
+                        name: info.name.into(),
+                    });
+                }
+            });
+        }
+        threads
+    }
+
     fn fleet_state(&self, vm: usize) -> fleet::State {
         let machine = &self.machines[vm];
         machine

@@ -12,7 +12,7 @@ use std::sync::mpsc::{self, Receiver};
 
 pub(super) struct Connection {
     pub(super) control: OwnedHandle<ByteChannelObject>,
-    pub(super) capabilities: CapabilityChannel,
+    pub(super) capabilities: Option<CapabilityChannel>,
 }
 
 pub(super) struct Listener {
@@ -91,20 +91,27 @@ fn receive(endpoint: &CapabilityChannel) -> hyper_os::Result<Connection> {
             ),
         ];
         let message = endpoint.receive(hyper_os::DEADLINE_INFINITE, &mut bytes, &mut slots)?;
-        if vm_contract::ManagerConnectionRequest::decode(message.bytes()).is_none()
-            || message.capability_count() != vm_contract::ManagerConnectionRequest::CAPABILITY_COUNT
-        {
+        let observer =
+            message.bytes() == vm_contract::trace::CONNECT && message.capability_count() == 1;
+        let manager = vm_contract::ManagerConnectionRequest::decode(message.bytes()).is_some()
+            && message.capability_count()
+                == vm_contract::ManagerConnectionRequest::CAPABILITY_COUNT;
+        if !observer && !manager {
             continue;
         }
         return Ok(Connection {
             control: slots[0]
                 .take::<ByteChannelObject>()?
                 .ok_or(hyper_os::Error::MissingHandle)?,
-            capabilities: CapabilityChannel::from_handle(
-                slots[1]
-                    .take::<CapabilityChannelObject>()?
-                    .ok_or(hyper_os::Error::MissingHandle)?,
-            ),
+            capabilities: if manager {
+                Some(CapabilityChannel::from_handle(
+                    slots[1]
+                        .take::<CapabilityChannelObject>()?
+                        .ok_or(hyper_os::Error::MissingHandle)?,
+                ))
+            } else {
+                None
+            },
         });
     }
 }
