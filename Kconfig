@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 roolrz
+# SPDX-License-Identifier: Apache-2.0
+
+config SYSTEM_APP_VM_MANAGER
+    bool "vm-manager (/svc/vm-manager)"
+    default y
+    depends on SYSTEM_APP_VM_RUNTIME && SYSTEM_APP_COMPONENT_MANAGER
+    help
+        Build and deploy hyper-vm-manager at /svc/vm-manager.
+
