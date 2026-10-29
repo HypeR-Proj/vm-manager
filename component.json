@@ -35,5 +35,48 @@
       "app-test",
       "APP_TEST_PACKAGE=hyper-vm-manager"
     ]
-  ]
+  ],
+  "cargo_context": {
+    "Cargo.toml": {
+      "workspace": null,
+      "membership": "../../app",
+      "dependency_paths": {
+        "/dependencies/hyper-service": "lib/service",
+        "/dependencies/hyper-component": "lib/component",
+        "/dependencies/hyper-service-ipc": "lib/service-ipc",
+        "/dependencies/hyper-journal": "lib/journal",
+        "target.cfg(target_os = \"hyper\")/dependencies/hyper-vm-policy-shared": "lib/vm-policy/shared",
+        "target.cfg(not(target_os = \"hyper\"))/dependencies/hyper-vm-policy": "lib/vm-policy"
+      },
+      "inherited_dependencies": {
+        "/dependencies/hyper-os": {
+          "workspace": true,
+          "features": [
+            "std"
+          ]
+        },
+        "/dependencies/hyper-rt": {
+          "workspace": true
+        },
+        "/dependencies/hyper-service": {
+          "workspace": true
+        },
+        "/dependencies/hyper-component": {
+          "workspace": true
+        },
+        "/dependencies/hyper-service-ipc": {
+          "workspace": true
+        },
+        "/dependencies/hyper-journal": {
+          "workspace": true
+        },
+        "target.cfg(target_os = \"hyper\")/dependencies/hyper-vm-policy-shared": {
+          "workspace": true
+        },
+        "target.cfg(not(target_os = \"hyper\"))/dependencies/hyper-vm-policy": {
+          "workspace": true
+        }
+      }
+    }
+  }
 }
