@@ -1,9 +1,7 @@
 # SPDX-FileCopyrightText: 2026 roolrz
 # SPDX-License-Identifier: Apache-2.0
 
-bin = [
-    { name = "hyper-vm-manager", path = "src/main.rs", test = false, bench = false },
-]
+bin = [{name = "hyper-vm-manager", path = "src/main.rs", test = false, bench = false}]
 
 [package]
 name = "hyper-vm-manager"
@@ -13,33 +11,34 @@ license = "Apache-2.0"
 repository = "https://github.com/HypeR-Proj/vm-manager"
 publish = false
 autotests = false
+workspace = "../../app"
 
 [features]
 broker-test = []
 
+[dependencies]
+
 [dependencies.hyper-os]
-version = "=0.0.0"
-features = [
-    "std",
-]
+workspace = true
+features = ["std"]
 
 [dependencies.hyper-rt]
-version = "=0.0.0"
-features = [
-    "std",
-]
+workspace = true
+features = ["std"]
 
 [dependencies.hyper-service]
-version = "=0.0.0"
+workspace = true
 
 [dependencies.hyper-component]
-version = "=0.0.0"
+workspace = true
 
 [dependencies.hyper-service-ipc]
-version = "=0.0.0"
+workspace = true
 
 [dependencies.hyper-journal]
-version = "=0.0.0"
+workspace = true
+
+[lints]
 
 [lints.clippy]
 doc_markdown = "deny"
@@ -58,18 +57,20 @@ unsafe_op_in_unsafe_fn = "deny"
 
 [lints.rust.unexpected_cfgs]
 level = "warn"
-check-cfg = [
-    "cfg(target_os, values(\"hyper\"))",
-]
+check-cfg = ["cfg(target_os, values(\"hyper\"))"]
+
+[target]
+
+[target."cfg(target_os = \"hyper\")"]
+
+[target."cfg(target_os = \"hyper\")".dependencies]
 
 [target."cfg(target_os = \"hyper\")".dependencies.hyper-vm-policy-shared]
-version = "=0.0.0"
+workspace = true
+
+[target."cfg(not(target_os = \"hyper\"))"]
+
+[target."cfg(not(target_os = \"hyper\"))".dependencies]
 
 [target."cfg(not(target_os = \"hyper\"))".dependencies.hyper-vm-policy]
-version = "=0.0.0"
-
-[workspace]
-members = [
-    ".",
-]
-resolver = "3"
+workspace = true

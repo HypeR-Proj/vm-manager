@@ -1,30 +1,12 @@
 {
+  "SPDX-FileCopyrightText": "2026 roolrz",
+  "SPDX-License-Identifier": "Apache-2.0",
   "version": 1,
   "name": "vm-manager",
   "kind": "service",
   "origin": {
     "repository": "https://github.com/roolrz/HypeR",
     "commit": "8d42d047058a2b58a291803700e86487fb723f7a"
-  },
-  "sources": {
-    "Cargo.toml": "svc/vm-manager/Cargo.toml",
-    "component.mk": "svc/vm-manager/component.mk",
-    "src/lib.rs": "svc/vm-manager/src/lib.rs",
-    "src/main.rs": "svc/vm-manager/src/main.rs",
-    "src/manager/commands.rs": "svc/vm-manager/src/manager/commands.rs",
-    "src/manager/console.rs": "svc/vm-manager/src/manager/console.rs",
-    "src/manager/instance.rs": "svc/vm-manager/src/manager/instance.rs",
-    "src/manager/inventory.rs": "svc/vm-manager/src/manager/inventory.rs",
-    "src/manager/launch.rs": "svc/vm-manager/src/manager/launch.rs",
-    "src/manager/listener.rs": "svc/vm-manager/src/manager/listener.rs",
-    "src/manager/mod.rs": "svc/vm-manager/src/manager/mod.rs",
-    "src/manager/provision.rs": "svc/vm-manager/src/manager/provision.rs",
-    "tests/supervision.rs": "svc/vm-manager/tests/supervision.rs"
-  },
-  "SPDX-FileCopyrightText": "2026 roolrz",
-  "SPDX-License-Identifier": "Apache-2.0",
-  "mounts": {
-    "": "svc/vm-manager"
   },
   "packages": [
     "hyper-vm-manager"
@@ -35,48 +17,5 @@
       "app-test",
       "APP_TEST_PACKAGE=hyper-vm-manager"
     ]
-  ],
-  "cargo_context": {
-    "Cargo.toml": {
-      "workspace": null,
-      "membership": "../../app",
-      "dependency_paths": {
-        "/dependencies/hyper-service": "lib/service",
-        "/dependencies/hyper-component": "lib/component",
-        "/dependencies/hyper-service-ipc": "lib/service-ipc",
-        "/dependencies/hyper-journal": "lib/journal",
-        "target.cfg(target_os = \"hyper\")/dependencies/hyper-vm-policy-shared": "lib/vm-policy/shared",
-        "target.cfg(not(target_os = \"hyper\"))/dependencies/hyper-vm-policy": "lib/vm-policy"
-      },
-      "inherited_dependencies": {
-        "/dependencies/hyper-os": {
-          "workspace": true,
-          "features": [
-            "std"
-          ]
-        },
-        "/dependencies/hyper-rt": {
-          "workspace": true
-        },
-        "/dependencies/hyper-service": {
-          "workspace": true
-        },
-        "/dependencies/hyper-component": {
-          "workspace": true
-        },
-        "/dependencies/hyper-service-ipc": {
-          "workspace": true
-        },
-        "/dependencies/hyper-journal": {
-          "workspace": true
-        },
-        "target.cfg(target_os = \"hyper\")/dependencies/hyper-vm-policy-shared": {
-          "workspace": true
-        },
-        "target.cfg(not(target_os = \"hyper\"))/dependencies/hyper-vm-policy": {
-          "workspace": true
-        }
-      }
-    }
-  }
+  ]
 }
