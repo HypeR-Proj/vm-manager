@@ -44,7 +44,9 @@ impl FleetManager {
     }
 
     pub(super) fn handle_client(&mut self, index: usize, observed: u64) -> hyper_os::Result<()> {
-        if !ObjectSignals::<ByteChannelObject>::READABLE.is_present_in(observed) {
+        if ObjectSignals::<ByteChannelObject>::PEER_CLOSED.is_present_in(observed)
+            || !ObjectSignals::<ByteChannelObject>::READABLE.is_present_in(observed)
+        {
             self.disconnect_client(index);
             return Ok(());
         }
@@ -101,6 +103,26 @@ impl FleetManager {
         if let Err(message) = self.configuration.check_request(&command) {
             return self.reply_error(client, message);
         }
+        let endpoint = &self.clients[client]
+            .as_ref()
+            .ok_or(hyper_os::Error::InvalidResponse)?
+            .control;
+        match hyper_os::wait::wait_many(
+            &[hyper_os::wait::WaitItem::new(
+                endpoint.as_handle_ref(),
+                ObjectSignals::<ByteChannelObject>::PEER_CLOSED,
+            )],
+            0,
+        ) {
+            Ok(_) => {
+                self.disconnect_client(client);
+                return Ok(());
+            }
+            Err(hyper_os::Error::Status(hyper_os::Status::TIMED_OUT)) => {}
+            Err(error) => return Err(error),
+        }
+        // This owner now accepts the operation. A later lost reply cannot undo
+        // installed definitions or drop live instances and retirement owners.
         let (name, operation) = match command {
             Request::List => {
                 let deadline = hyper_os::time::deadline_after(Duration::from_millis(250))?.as_raw();
