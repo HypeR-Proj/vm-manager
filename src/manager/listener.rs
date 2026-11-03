@@ -90,7 +90,11 @@ fn receive(endpoint: &CapabilityChannel) -> hyper_os::Result<Connection> {
                 Rights::WAIT.union(Rights::WRITE),
             ),
         ];
-        let message = endpoint.receive(hyper_os::DEADLINE_INFINITE, &mut bytes, &mut slots)?;
+        let message = match endpoint.receive(hyper_os::DEADLINE_INFINITE, &mut bytes, &mut slots) {
+            Ok(message) => message,
+            Err(hyper_os::Error::ReceiveRejected(_)) => continue,
+            Err(error) => return Err(error),
+        };
         let observer =
             message.bytes() == vm_contract::trace::CONNECT && message.capability_count() == 1;
         let manager = vm_contract::ManagerConnectionRequest::decode(message.bytes()).is_some()
